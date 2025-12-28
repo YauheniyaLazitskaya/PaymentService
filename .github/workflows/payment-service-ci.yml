@@ -1,0 +1,49 @@
+name: Payment Service CI
+
+on:
+  push:
+    branches: [ "feature-payment-service" ]
+    paths:
+      - 'payment-service/**'
+      - 'common-lib/**'
+      - 'pom.xml'
+  pull_request:
+    paths:
+      - 'payment-service/**'
+      - 'common-lib/**'
+
+jobs:
+  test-payment-service:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Run Tests for Payment Service
+        run: mvn clean verify -pl payment-service -am
+
+      - name: Log in to Docker Hub
+        if: success()
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push Payment Service Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: payment-service/Dockerfile
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/payment-service:latest
